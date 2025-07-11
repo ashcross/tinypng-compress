@@ -1,0 +1,32 @@
+{
+  "version": "1.0.0",
+  "apiKeys": [
+    {
+      "name": "Example",
+      "key": "abc123",
+      "email": "test@example.com",
+      "compressions_used": 0,
+      "last_reset": "2025-07-11",
+      "created": "2025-07-11T02:55:34.259Z",
+      "status": "active"
+    }
+  ],
+  "compression": {
+    "preserve_metadata": false,
+    "convert_format": null,
+    "quality": "auto",
+    "resize": null
+  },
+  "output": {
+    "create_backup": true,
+    "backup_directory": "./original",
+    "output_directory": "./",
+    "preserve_structure": true,
+    "overwrite_existing": false
+  },
+  "advanced": {
+    "max_concurrent": 3,
+    "retry_attempts": 3,
+    "request_delay": 100
+  }
+}
