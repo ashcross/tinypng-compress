@@ -30,3 +30,4 @@ pnpm-debug.log*
 # Local code editor settings
 .cursor/
 .vscode/
+.claude/

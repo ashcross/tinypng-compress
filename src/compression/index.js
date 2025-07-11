@@ -49,7 +49,15 @@ async function compressFile(inputPath, apiKey, options = {}) {
     
     const compressedSize = fs.statSync(tempPath).size;
     
-    await fs.move(tempPath, inputPath, { overwrite: true });
+    // Determine output path based on conversion
+    let outputPath = inputPath;
+    if (options.convert) {
+      const parsedPath = path.parse(inputPath);
+      const newExtension = options.convert.toLowerCase() === 'jpeg' ? '.jpg' : `.${options.convert.toLowerCase()}`;
+      outputPath = path.join(parsedPath.dir, parsedPath.name + newExtension);
+    }
+    
+    await fs.move(tempPath, outputPath, { overwrite: true });
     
     const processingTime = Date.now() - startTime;
     const compressionRatio = ((originalSize - compressedSize) / originalSize) * 100;
@@ -61,7 +69,8 @@ async function compressFile(inputPath, apiKey, options = {}) {
       savings: originalSize - compressedSize,
       compressionRatio: Math.round(compressionRatio * 100) / 100,
       processingTime,
-      compressionCount: tinify.compressionCount
+      compressionCount: tinify.compressionCount,
+      outputPath
     };
     
   } catch (err) {

@@ -44,6 +44,9 @@ async function compressFileCommand(filePath, apiKeyName, options = {}) {
     const result = await compressWithRetry(resolvedFilePath, apiKey, compressionOptions);
     
     console.log(`✓ Compressed successfully using API key '${apiKeyName}'`);
+    if (options.convert && result.outputPath !== resolvedFilePath) {
+      console.log(`✓ Converted to ${options.convert.toUpperCase()} format: ${result.outputPath}`);
+    }
     console.log('');
     console.log('File Statistics:');
     console.log(`  Original:   ${formatBytes(result.originalSize)}`);
@@ -69,8 +72,15 @@ async function compressFileCommand(filePath, apiKeyName, options = {}) {
       errorInfo = handleCompressionError(err, apiKeyName, resolvedFilePath);
     } else if (err.code && (err.code.startsWith('E'))) {
       errorInfo = handleFileSystemError(err, resolvedFilePath);
-    } else if (err.message.includes('config') || err.message.includes('API key')) {
+    } else if (err.message.includes('Configuration file not found') || err.message.includes('Configuration file contains invalid JSON')) {
       errorInfo = handleConfigError(err);
+    } else if (err.message.includes('API key') && err.message.includes('not found') && err.message.includes('Available keys:')) {
+      // Handle API key not found specifically
+      errorInfo = {
+        type: 'API_KEY_NOT_FOUND',
+        message: err.message,
+        suggestion: `Check available API keys with 'tinypng-compress --check' or add a new key with 'tinypng-compress --new-key'`
+      };
     } else {
       errorInfo = {
         type: 'UNKNOWN_ERROR',

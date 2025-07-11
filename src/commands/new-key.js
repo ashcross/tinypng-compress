@@ -85,7 +85,7 @@ async function newKeyCommand() {
     }
     
     // Load existing configuration
-    const config = loadConfig();
+    const config = await loadConfig();
     
     console.log('Adding new API key to existing configuration...\n');
     console.log(`Current API keys: ${config.apiKeys.length}`);
@@ -101,7 +101,7 @@ async function newKeyCommand() {
     const newApiKey = await addNewApiKey(config);
     
     // Save updated configuration
-    saveConfig(config);
+    await saveConfig(config);
     
     console.log(`\n✓ API key '${newApiKey.name}' added successfully`);
     console.log(`✓ Configuration updated with ${config.apiKeys.length} total API keys\n`);

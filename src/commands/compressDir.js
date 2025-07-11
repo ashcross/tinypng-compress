@@ -121,7 +121,7 @@ async function compressDirCommand(dirPath, apiKeyName, options = {}) {
       errorInfo = handleFileSystemError(err, resolvedDirPath);
     } else if (err.message.includes('Configuration file not found')) {
       errorInfo = handleConfigError(err);
-    } else if (err.message.includes('API key') && err.message.includes('not found')) {
+    } else if (err.message.includes('API key') && err.message.includes('not found') && err.message.includes('Available keys:')) {
       // Handle API key not found error specifically
       errorInfo = {
         type: 'API_KEY_NOT_FOUND',
@@ -230,6 +230,7 @@ async function processFilesWithProgress(files, apiKey, options = {}) {
       
       results.successful.push({
         file: file.path,
+        outputPath: result.outputPath,
         ...result
       });
       
@@ -239,8 +240,13 @@ async function processFilesWithProgress(files, apiKey, options = {}) {
       results.finalCompressionCount = result.compressionCount;
       
       // Update progress with results
+      const fileName = path.basename(file.path);
+      const outputFileName = path.basename(result.outputPath || file.path);
+      const displayName = result.outputPath && result.outputPath !== file.path ? 
+        `${fileName} → ${outputFileName}` : fileName;
+      
       progressBar.update(i + 1, {
-        current: `✓ ${path.basename(file.path)}`,
+        current: `✓ ${displayName}`,
         savings: formatBytes(results.totalSavings)
       });
       
@@ -317,6 +323,17 @@ function displayCompressionReport(results, apiKeyName) {
   console.log(`\n🔑 API Key Usage:`);
   console.log(`   ${apiKeyName}: ${results.finalCompressionCount}/500 compressions used (${remaining} remaining)`);
   
+  // Converted files
+  const convertedFiles = results.successful.filter(r => r.outputPath && r.outputPath !== r.file);
+  if (convertedFiles.length > 0) {
+    console.log(`\n🔄 Converted Files:`);
+    convertedFiles.forEach(result => {
+      const originalName = path.basename(result.file);
+      const convertedName = path.basename(result.outputPath);
+      console.log(`   ${originalName} → ${convertedName}`);
+    });
+  }
+  
   // Failed files
   if (results.failed.length > 0) {
     console.log(`\n❌ Failed Files:`);
@@ -353,9 +370,9 @@ function calculateCompressionStats(results) {
     stats.throughput = (stats.successfulFiles / results.processingTime) * 1000;
   }
   
-  // Group by file type
+  // Group by file type (using output file extension for converted files)
   for (const result of results.successful) {
-    const ext = path.extname(result.file).toLowerCase();
+    const ext = path.extname(result.outputPath || result.file).toLowerCase();
     
     if (!stats.byFileType[ext]) {
       stats.byFileType[ext] = {

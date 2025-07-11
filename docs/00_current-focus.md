@@ -1,15 +1,19 @@
-# PHASE 3 - directory processing, backup system and progress tracking
+# PHASE 3.5 - enhancements
 
 ## Active References
-- reference/config-structure.md
-- reference/commands-spec.md
-- reference/api-reference.md
-- reference/file-operations.md
-- reference/error-handling.md
+- docs/config-structure.md
+- docs/commands-spec.md
+- docs/api-reference.md
+- docs/file-operations.md
+- docs/error-handling.md
 
 ## Tasks
-Add directory processing with backup system. Implement progress tracking and batch compression with the --dir command.
-Add thorough testing scenarios to ensure accurate implementation
+- review the --convert command. When converting a file to a different format, the new image should be saved as the new format. e.g. example.jpg > example.webp if '--convert webp'
 
 ## Previous Phases
 - reference/focus-history/* for previous phase implementation notes
+
+
+## Tasks to be completed soon - ignore these tasks for now
+- ignore: when '--api-key' is not specified, the default should be to use the next available api key with enough available compressions remaining
+- ignore: batch processing of image uploads and compressions via tinypng api for more efficient processing
