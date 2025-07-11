@@ -88,13 +88,13 @@ function validateConfig(config) {
   return true;
 }
 
-function loadConfig() {
-  if (!fs.existsSync(CONFIG_FILE)) {
+async function loadConfig() {
+  if (!await fs.pathExists(CONFIG_FILE)) {
     throw new Error('Configuration file not found. Run --init to create one.');
   }
   
   try {
-    const configData = fs.readFileSync(CONFIG_FILE, 'utf8');
+    const configData = await fs.readFile(CONFIG_FILE, 'utf8');
     const config = JSON.parse(configData);
     
     validateConfig(config);
@@ -108,13 +108,13 @@ function loadConfig() {
   }
 }
 
-function saveConfig(config) {
+async function saveConfig(config) {
   validateConfig(config);
   
   const configData = JSON.stringify(config, null, 2);
   
   try {
-    fs.writeFileSync(CONFIG_FILE, configData, { mode: 0o600 });
+    await fs.writeFile(CONFIG_FILE, configData, { mode: 0o600 });
     console.log('✓ Configuration saved successfully');
   } catch (err) {
     throw new Error(`Failed to save configuration: ${err.message}`);
@@ -137,7 +137,7 @@ function isNewMonth(lastReset) {
          now.getFullYear() !== reset.getFullYear();
 }
 
-function resetAllKeysIfNeeded(config) {
+async function resetAllKeysIfNeeded(config) {
   let updated = false;
   
   config.apiKeys.forEach(apiKey => {
@@ -150,14 +150,14 @@ function resetAllKeysIfNeeded(config) {
   });
   
   if (updated) {
-    saveConfig(config);
+    await saveConfig(config);
     console.log('✓ Monthly usage reset applied to API keys');
   }
   
   return updated;
 }
 
-function updateKeyUsage(config, keyName, newUsageCount) {
+async function updateKeyUsage(config, keyName, newUsageCount) {
   const apiKey = config.apiKeys.find(key => key.name === keyName);
   
   if (!apiKey) {
@@ -178,7 +178,7 @@ function updateKeyUsage(config, keyName, newUsageCount) {
     apiKey.status = 'active';
   }
   
-  saveConfig(config);
+  await saveConfig(config);
   
   return apiKey;
 }

@@ -69,14 +69,14 @@ async function checkApiKey(apiKey) {
 
 async function checkCommand() {
   try {
-    const config = loadConfig();
+    const config = await loadConfig();
     
     if (config.apiKeys.length === 0) {
       console.log('No API keys configured. Run --init to add API keys.');
       return;
     }
     
-    resetAllKeysIfNeeded(config);
+    await resetAllKeysIfNeeded(config);
     
     const now = new Date();
     const monthYear = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -91,7 +91,7 @@ async function checkCommand() {
       const result = await checkApiKey(apiKey);
       
       if (result.valid) {
-        updateKeyUsage(config, apiKey.name, result.usage);
+        await updateKeyUsage(config, apiKey.name, result.usage);
         validKeys++;
       }
       

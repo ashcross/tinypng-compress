@@ -7,6 +7,7 @@ import { dirname, join } from 'path';
 import initCommand from './commands/init.js';
 import checkCommand from './commands/check.js';
 import newKeyCommand from './commands/new-key.js';
+import compressFileCommand from './commands/compress.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -51,7 +52,17 @@ async function main() {
     }
 
     if (options.file) {
-      console.log(`Compress file: ${options.file} - Not implemented yet`);
+      if (!options.apiKey) {
+        console.error('Error: --api-key is required when using --file');
+        process.exit(1);
+      }
+      
+      const compressionOptions = {
+        preserveMetadata: options.preserveMetadata,
+        convert: options.convert
+      };
+      
+      await compressFileCommand(options.file, options.apiKey, compressionOptions);
       return;
     }
 

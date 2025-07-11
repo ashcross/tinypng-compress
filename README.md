@@ -8,5 +8,5 @@ OR
 node src/index.js --init
 
 Add additional keys
-tinypng-compress --add-key
+tinypng-compress --new-key
 

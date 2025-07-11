@@ -1,6 +1,9 @@
 # Config file
 tinypng.config.json
 
+# Image file conversions
+images/
+
 # build output
 dist/
 
