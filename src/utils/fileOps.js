@@ -16,15 +16,18 @@ function formatBytes(bytes) {
 function validateFileForProcessing(filePath) {
   const errors = [];
   
-  if (!fs.existsSync(filePath)) {
-    errors.push(`File not found: ${filePath}`);
+  // Resolve to absolute path for consistent handling
+  const resolvedPath = path.resolve(filePath);
+  
+  if (!fs.existsSync(resolvedPath)) {
+    errors.push(`File not found: ${resolvedPath}`);
     return errors;
   }
   
-  const stats = fs.statSync(filePath);
+  const stats = fs.statSync(resolvedPath);
   
   if (!stats.isFile()) {
-    errors.push(`Path is not a file: ${filePath}`);
+    errors.push(`Path is not a file: ${resolvedPath}`);
   }
   
   const maxSize = 500 * 1024 * 1024; // 500MB in bytes
@@ -33,23 +36,23 @@ function validateFileForProcessing(filePath) {
   }
   
   try {
-    fs.accessSync(filePath, fs.constants.R_OK);
+    fs.accessSync(resolvedPath, fs.constants.R_OK);
   } catch (err) {
-    errors.push(`File not readable: ${filePath}`);
+    errors.push(`File not readable: ${resolvedPath}`);
   }
   
-  const ext = path.extname(filePath).toLowerCase();
+  const ext = path.extname(resolvedPath).toLowerCase();
   if (!SUPPORTED_EXTENSIONS.includes(ext)) {
     errors.push(`Unsupported format: ${ext}. Supported: ${SUPPORTED_EXTENSIONS.join(', ')}`);
   }
   
   try {
-    const header = fs.readFileSync(filePath, { start: 0, end: 12 });
-    if (!isValidImageHeader(header, filePath)) {
-      errors.push(`Invalid or corrupted image file: ${filePath}`);
+    const header = fs.readFileSync(resolvedPath, { start: 0, end: 12 });
+    if (!isValidImageHeader(header, resolvedPath)) {
+      errors.push(`Invalid or corrupted image file: ${resolvedPath}`);
     }
   } catch (err) {
-    errors.push(`Cannot read file header: ${filePath}`);
+    errors.push(`Cannot read file header: ${resolvedPath}`);
   }
   
   return errors;
@@ -82,8 +85,11 @@ function isValidImageHeader(buffer, filePath) {
   return false;
 }
 
-function createBackupDirectory(baseDirectory) {
-  const backupPath = path.join(baseDirectory, 'original');
+function createBackupDirectory(filePath) {
+  // Get the directory where the file is located
+  const resolvedFilePath = path.resolve(filePath);
+  const fileDirectory = path.dirname(resolvedFilePath);
+  const backupPath = path.join(fileDirectory, 'original');
   
   try {
     fs.ensureDirSync(backupPath);

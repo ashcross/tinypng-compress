@@ -6,6 +6,9 @@ import path from 'path';
 import tinify from 'tinify';
 
 async function compressFileCommand(filePath, apiKeyName, options = {}) {
+  // Resolve file path to absolute path for consistent handling
+  const resolvedFilePath = path.resolve(filePath);
+  
   try {
     const config = await loadConfig();
     
@@ -15,19 +18,18 @@ async function compressFileCommand(filePath, apiKeyName, options = {}) {
       throw new Error(`API key '${apiKeyName}' not found. Available keys: ${availableKeys}`);
     }
     
-    const validationErrors = validateFileForProcessing(filePath);
+    const validationErrors = validateFileForProcessing(resolvedFilePath);
     if (validationErrors.length > 0) {
       throw new Error(validationErrors.join(', '));
     }
     
     canCompress(apiKey, 1);
     
-    const fileDirectory = path.dirname(filePath);
-    const backupDirectory = createBackupDirectory(fileDirectory);
+    const backupDirectory = createBackupDirectory(resolvedFilePath);
     
     console.log(`Compressing: ${filePath}`);
     
-    const backupResult = await backupFile(filePath, backupDirectory);
+    const backupResult = await backupFile(resolvedFilePath, backupDirectory);
     if (backupResult.skipped) {
       console.log(`✓ Backup already exists: ${backupResult.path}`);
     } else {
@@ -39,7 +41,7 @@ async function compressFileCommand(filePath, apiKeyName, options = {}) {
       convert: options.convert
     };
     
-    const result = await compressWithRetry(filePath, apiKey, compressionOptions);
+    const result = await compressWithRetry(resolvedFilePath, apiKey, compressionOptions);
     
     console.log(`✓ Compressed successfully using API key '${apiKeyName}'`);
     console.log('');
@@ -64,9 +66,9 @@ async function compressFileCommand(filePath, apiKeyName, options = {}) {
     
     if (err instanceof tinify.AccountError || err instanceof tinify.ClientError || 
         err instanceof tinify.ServerError || err instanceof tinify.ConnectionError) {
-      errorInfo = handleCompressionError(err, apiKeyName, filePath);
+      errorInfo = handleCompressionError(err, apiKeyName, resolvedFilePath);
     } else if (err.code && (err.code.startsWith('E'))) {
-      errorInfo = handleFileSystemError(err, filePath);
+      errorInfo = handleFileSystemError(err, resolvedFilePath);
     } else if (err.message.includes('config') || err.message.includes('API key')) {
       errorInfo = handleConfigError(err);
     } else {
