@@ -22,7 +22,18 @@ async function compressFile(inputPath, apiKey, options = {}) {
     }
     
     if (options.convert) {
-      const convertOptions = { type: options.convert };
+      // Map format short names to MIME types
+      const formatMap = {
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'webp': 'image/webp',
+        'avif': 'image/avif'
+      };
+      
+      const mimeType = formatMap[options.convert.toLowerCase()] || options.convert;
+      const convertOptions = { type: mimeType };
+      
       if (options.background) {
         convertOptions.transform = { background: options.background };
       }

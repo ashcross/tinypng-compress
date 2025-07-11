@@ -8,6 +8,7 @@ import initCommand from './commands/init.js';
 import checkCommand from './commands/check.js';
 import newKeyCommand from './commands/new-key.js';
 import compressFileCommand from './commands/compress.js';
+import compressDirCommand from './commands/compressDir.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -28,7 +29,8 @@ program
   .option('--dir <path>', 'Compress directory')
   .option('--api-key <name>', 'Specify API key to use')
   .option('--preserve-metadata', 'Keep EXIF data')
-  .option('--convert <format>', 'Convert to format (webp|png|jpeg|avif)');
+  .option('--convert <format>', 'Convert to format (webp|png|jpeg|avif)')
+  .option('--recursive', 'Include subdirectories when processing directory');
 
 program.parse();
 
@@ -67,7 +69,18 @@ async function main() {
     }
 
     if (options.dir) {
-      console.log(`Compress directory: ${options.dir} - Not implemented yet`);
+      if (!options.apiKey) {
+        console.error('Error: --api-key is required when using --dir');
+        process.exit(1);
+      }
+      
+      const compressionOptions = {
+        preserveMetadata: options.preserveMetadata,
+        convert: options.convert,
+        recursive: options.recursive
+      };
+      
+      await compressDirCommand(options.dir, options.apiKey, compressionOptions);
       return;
     }
 

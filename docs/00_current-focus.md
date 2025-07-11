@@ -1,4 +1,4 @@
-# PHASE 2 - individual file compression & API Integration
+# PHASE 3 - directory processing, backup system and progress tracking
 
 ## Active References
 - reference/config-structure.md
@@ -8,7 +8,7 @@
 - reference/error-handling.md
 
 ## Tasks
-Implement TinyPNG API integration with proper error handling. Add single file compression with --file and --api-key flags.
+Add directory processing with backup system. Implement progress tracking and batch compression with the --dir command.
 Add thorough testing scenarios to ensure accurate implementation
 
 ## Previous Phases
