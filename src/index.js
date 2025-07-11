@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import initCommand from './commands/init.js';
 import checkCommand from './commands/check.js';
+import newKeyCommand from './commands/new-key.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -21,6 +22,7 @@ program
 program
   .option('--init', 'Create configuration file')
   .option('--check', 'Show API key usage status')
+  .option('--new-key', 'Add new API key to existing configuration')
   .option('--file <path>', 'Compress single file')
   .option('--dir <path>', 'Compress directory')
   .option('--api-key <name>', 'Specify API key to use')
@@ -40,6 +42,11 @@ async function main() {
 
     if (options.check) {
       await checkCommand();
+      return;
+    }
+
+    if (options.newKey) {
+      await newKeyCommand();
       return;
     }
 
