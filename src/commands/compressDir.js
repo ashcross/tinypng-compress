@@ -1,7 +1,8 @@
 import { loadConfig, saveConfig } from '../config/index.js';
 import { compressWithRetry, canCompress } from '../compression/index.js';
+import { BatchProcessor } from '../compression/batchProcessor.js';
 import { validateFileForProcessing, createBackupDirectory, backupFile, formatBytes, scanForImages } from '../utils/fileOps.js';
-import { handleCompressionError, handleFileSystemError, handleConfigError, formatErrorMessage } from '../utils/errorHandler.js';
+import { handleCompressionError, handleFileSystemError, handleConfigError, formatErrorMessage, formatBatchErrorSummary, aggregateBatchErrors } from '../utils/errorHandler.js';
 import path from 'path';
 import fs from 'fs-extra';
 import tinify from 'tinify';
@@ -98,9 +99,9 @@ async function compressDirCommand(dirPath, apiKeyName, options = {}) {
       });
     }
     
-    // Process files with progress bar
+    // Process files with enhanced batch processing
     const filesToProcess = validFiles.slice(0, availableCompressions);
-    const compressionResults = await processFilesWithProgress(filesToProcess, apiKey, options);
+    const compressionResults = await processFilesWithBatchProcessor(filesToProcess, apiKey, options, config);
     
     // Update API key usage
     apiKey.compressions_used = compressionResults.finalCompressionCount;
@@ -173,22 +174,20 @@ async function backupFiles(files, backupDirectory) {
   return results;
 }
 
-async function processFilesWithProgress(files, apiKey, options = {}) {
-  const results = {
-    successful: [],
-    failed: [],
-    totalOriginalSize: 0,
-    totalCompressedSize: 0,
-    totalSavings: 0,
-    processingTime: 0,
-    finalCompressionCount: apiKey.compressions_used
+async function processFilesWithBatchProcessor(files, apiKey, options = {}, config = {}) {
+  // Create batch processor with configuration
+  const batchConfig = {
+    maxConcurrent: config.advanced?.max_concurrent || 3,
+    requestDelay: config.advanced?.request_delay || 100,
+    retryAttempts: config.advanced?.retry_attempts || 3,
+    adaptiveRateLimit: config.advanced?.adaptive_rate_limiting !== false
   };
   
-  const startTime = Date.now();
+  const batchProcessor = new BatchProcessor(batchConfig);
   
-  // Create progress bar
+  // Create enhanced progress bar
   const progressBar = new cliProgress.SingleBar({
-    format: 'Compressing |{bar}| {percentage}% | {value}/{total} | {current} | Saved: {savings}',
+    format: 'Compressing |{bar}| {percentage}% | {value}/{total} | {current} | Saved: {savings} | Concurrent: {concurrent}',
     barCompleteChar: '█',
     barIncompleteChar: '░',
     hideCursor: true
@@ -196,83 +195,46 @@ async function processFilesWithProgress(files, apiKey, options = {}) {
   
   progressBar.start(files.length, 0, {
     current: 'Starting...',
-    savings: '0 B'
+    savings: '0 B',
+    concurrent: '0'
   });
   
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
+  // Progress tracking with concurrency info
+  const progressInterval = setInterval(() => {
+    const stats = batchProcessor.getStats();
+    const currentConcurrency = batchProcessor.getCurrentConcurrency();
     
-    try {
-      // Check if we still have compressions available
-      if (results.finalCompressionCount >= 500) {
-        const remaining = files.slice(i);
-        results.failed.push(...remaining.map(f => ({
-          file: f.path,
-          error: 'API key reached monthly limit',
-          reason: 'limit_reached'
-        })));
-        break;
-      }
-      
-      // Update progress with current file
-      progressBar.update(i, {
-        current: path.basename(file.path),
-        savings: formatBytes(results.totalSavings)
-      });
-      
-      // Compress file
-      const compressionOptions = {
-        preserveMetadata: options.preserveMetadata,
-        convert: options.convert
-      };
-      
-      const result = await compressWithRetry(file.path, apiKey, compressionOptions);
-      
-      results.successful.push({
-        file: file.path,
-        outputPath: result.outputPath,
-        ...result
-      });
-      
-      results.totalOriginalSize += result.originalSize;
-      results.totalCompressedSize += result.compressedSize;
-      results.totalSavings += result.savings;
-      results.finalCompressionCount = result.compressionCount;
-      
-      // Update progress with results
-      const fileName = path.basename(file.path);
-      const outputFileName = path.basename(result.outputPath || file.path);
-      const displayName = result.outputPath && result.outputPath !== file.path ? 
-        `${fileName} → ${outputFileName}` : fileName;
-      
-      progressBar.update(i + 1, {
-        current: `✓ ${displayName}`,
-        savings: formatBytes(results.totalSavings)
-      });
-      
-      // Add small delay to respect rate limits
-      if (i < files.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      
-    } catch (err) {
-      results.failed.push({
-        file: file.path,
-        error: err.message,
-        reason: err.name || 'unknown'
-      });
-      
-      progressBar.update(i + 1, {
-        current: `❌ ${path.basename(file.path)}`,
-        savings: formatBytes(results.totalSavings)
-      });
-    }
+    // Use real-time savings from batch processor stats
+    const currentSavings = stats.totalSavings || 0;
+    
+    progressBar.update(stats.processed, {
+      current: stats.processed < files.length ? `Processing...` : 'Completing...',
+      savings: formatBytes(currentSavings),
+      concurrent: currentConcurrency
+    });
+  }, 250);
+  
+  try {
+    // Process files with batch processor
+    const results = await batchProcessor.processBatch(files, apiKey, options);
+    
+    // Update final progress
+    progressBar.update(files.length, {
+      current: 'Completed!',
+      savings: formatBytes(results.totalSavings),
+      concurrent: '0'
+    });
+    
+    progressBar.stop();
+    clearInterval(progressInterval);
+    
+    return results;
+    
+  } catch (error) {
+    progressBar.stop();
+    clearInterval(progressInterval);
+    throw error;
   }
-  
-  progressBar.stop();
-  results.processingTime = Date.now() - startTime;
-  
-  return results;
 }
 
 function displayCompressionReport(results, apiKeyName) {
@@ -302,6 +264,15 @@ function displayCompressionReport(results, apiKeyName) {
     console.log(`\n⚡ Performance:`);
     console.log(`   Processing Time: ${(stats.processingTime / 1000).toFixed(1)}s`);
     console.log(`   Throughput: ${stats.throughput.toFixed(1)} files/second`);
+    
+    // Concurrent processing metrics
+    if (results.concurrentMetrics) {
+      console.log(`\n🔄 Concurrent Processing:`);
+      console.log(`   Max Concurrent: ${results.concurrentMetrics.maxConcurrent}`);
+      console.log(`   Peak Concurrent: ${results.concurrentMetrics.peakConcurrency}`);
+      console.log(`   Avg Response Time: ${results.concurrentMetrics.avgResponseTime.toFixed(0)}ms`);
+      console.log(`   Total Requests: ${results.concurrentMetrics.totalRequests}`);
+    }
     
     // By file type
     if (Object.keys(stats.byFileType).length > 0) {
@@ -334,12 +305,10 @@ function displayCompressionReport(results, apiKeyName) {
     });
   }
   
-  // Failed files
+  // Enhanced error reporting
   if (results.failed.length > 0) {
-    console.log(`\n❌ Failed Files:`);
-    results.failed.forEach(failure => {
-      console.log(`   ${path.basename(failure.file)}: ${failure.error}`);
-    });
+    const errorSummary = formatBatchErrorSummary(results.failed, results.successful.length + results.failed.length);
+    console.log(errorSummary);
   }
 }
 

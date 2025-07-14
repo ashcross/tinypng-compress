@@ -285,6 +285,7 @@ Options:
   --api-key <name>          Specify API key to use
   --preserve-metadata       Keep EXIF data
   --convert <format>        Convert to format (webp|png|jpeg|avif)
+  --recursive               Include subdirectories
   -h, --help               Display help information
 
 Examples:

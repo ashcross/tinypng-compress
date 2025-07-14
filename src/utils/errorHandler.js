@@ -112,9 +112,147 @@ function formatErrorMessage(errorInfo) {
   return lines.join('\n');
 }
 
+function handleBatchError(err, context = {}) {
+  const { fileName, currentFile, totalFiles, apiKeyName } = context;
+  
+  if (err instanceof tinify.AccountError) {
+    return {
+      type: 'BATCH_API_LIMIT',
+      message: `API key '${apiKeyName}' reached limit while processing ${fileName} (${currentFile}/${totalFiles})`,
+      suggestion: `Remaining files will be skipped. Use 'tinypng-compress --check' to verify key status or switch to a different API key.`,
+      recoverable: false
+    };
+  } else if (err instanceof tinify.ClientError) {
+    return {
+      type: 'BATCH_FILE_ERROR',
+      message: `File format error in ${fileName}: ${err.message}`,
+      suggestion: `Skipping this file and continuing with remaining files.`,
+      recoverable: true
+    };
+  } else if (err instanceof tinify.ServerError) {
+    return {
+      type: 'BATCH_SERVER_ERROR',
+      message: `TinyPNG server error while processing ${fileName}: ${err.message}`,
+      suggestion: `Retrying with exponential backoff. If problem persists, this file will be skipped.`,
+      recoverable: true
+    };
+  } else if (err instanceof tinify.ConnectionError) {
+    return {
+      type: 'BATCH_NETWORK_ERROR',
+      message: `Network error while processing ${fileName}: ${err.message}`,
+      suggestion: `Retrying with exponential backoff. Check network connection.`,
+      recoverable: true
+    };
+  } else if (err.message.includes('Circuit breaker')) {
+    return {
+      type: 'BATCH_CIRCUIT_BREAKER',
+      message: `Circuit breaker activated after multiple failures`,
+      suggestion: `Pausing batch processing to prevent further issues. Will retry after cooldown period.`,
+      recoverable: true
+    };
+  } else if (err.message.includes('memory')) {
+    return {
+      type: 'BATCH_MEMORY_ERROR',
+      message: `Memory pressure detected during batch processing`,
+      suggestion: `Reducing concurrency to manage memory usage. Consider processing in smaller batches.`,
+      recoverable: true
+    };
+  } else {
+    return {
+      type: 'BATCH_UNKNOWN_ERROR',
+      message: `Unknown error while processing ${fileName}: ${err.message}`,
+      suggestion: `Skipping this file and continuing with batch processing.`,
+      recoverable: true
+    };
+  }
+}
+
+function formatBatchErrorSummary(errors, totalFiles) {
+  if (errors.length === 0) return '';
+  
+  const lines = [];
+  lines.push(`\n❌ Batch Processing Errors (${errors.length}/${totalFiles} files failed):`);
+  lines.push('─'.repeat(60));
+  
+  const errorsByType = errors.reduce((acc, error) => {
+    const type = error.reason || 'unknown';
+    if (!acc[type]) acc[type] = [];
+    acc[type].push(error);
+    return acc;
+  }, {});
+  
+  for (const [type, typeErrors] of Object.entries(errorsByType)) {
+    lines.push(`\n${type.toUpperCase()} (${typeErrors.length} files):`);
+    typeErrors.slice(0, 5).forEach(error => {
+      const fileName = error.file ? error.file.split('/').pop() : 'unknown';
+      lines.push(`  • ${fileName}: ${error.error}`);
+    });
+    
+    if (typeErrors.length > 5) {
+      lines.push(`  ... and ${typeErrors.length - 5} more files`);
+    }
+  }
+  
+  // Add recovery suggestions
+  lines.push('\n💡 Recovery Suggestions:');
+  
+  if (errorsByType['AccountError'] || errorsByType['limit_reached']) {
+    lines.push('  • API limit reached: Use --check to verify key status');
+    lines.push('  • Consider using multiple API keys for large batches');
+  }
+  
+  if (errorsByType['ClientError'] || errorsByType['unknown']) {
+    lines.push('  • File format errors: Check image file integrity');
+    lines.push('  • Run validation on failed files individually');
+  }
+  
+  if (errorsByType['ServerError'] || errorsByType['ConnectionError']) {
+    lines.push('  • Network/server errors: Retry batch processing');
+    lines.push('  • Consider reducing concurrency with --max-concurrent');
+  }
+  
+  return lines.join('\n');
+}
+
+function aggregateBatchErrors(results) {
+  const summary = {
+    totalFiles: results.successful.length + results.failed.length,
+    successful: results.successful.length,
+    failed: results.failed.length,
+    successRate: 0,
+    errorBreakdown: {},
+    recoverableErrors: 0,
+    fatalErrors: 0
+  };
+  
+  if (summary.totalFiles > 0) {
+    summary.successRate = (summary.successful / summary.totalFiles) * 100;
+  }
+  
+  results.failed.forEach(failure => {
+    const errorType = failure.reason || 'unknown';
+    if (!summary.errorBreakdown[errorType]) {
+      summary.errorBreakdown[errorType] = 0;
+    }
+    summary.errorBreakdown[errorType]++;
+    
+    // Categorize errors as recoverable or fatal
+    if (['ClientError', 'ServerError', 'ConnectionError'].includes(errorType)) {
+      summary.recoverableErrors++;
+    } else {
+      summary.fatalErrors++;
+    }
+  });
+  
+  return summary;
+}
+
 export {
   handleCompressionError,
   handleFileSystemError,
   handleConfigError,
-  formatErrorMessage
+  formatErrorMessage,
+  handleBatchError,
+  formatBatchErrorSummary,
+  aggregateBatchErrors
 };
