@@ -189,3 +189,31 @@ Please implement the batch processing logic with proper concurrency control, err
   significant performance improvements for directory-based compression operations.
   Users will immediately benefit from faster processing times and more robust error
   handling without any changes to their existing workflows.
+
+  
+  
+  ## Task to resolve not deleting files after conversion
+
+  Fix Completed
+
+  The issue has been resolved. I modified the compressFile function
+  in src/compression/index.js:63-69 to remove the original file
+  after successful format conversion.
+
+  What was changed:
+  - Added conditional cleanup logic that runs only when format
+  conversion occurs (options.convert && inputPath !== outputPath)
+  - Uses fs.unlink() to remove the original file after the converted
+   file is successfully created
+  - Includes error handling with a warning message if cleanup fails
+
+  Now the behavior matches the expected flow:
+  - Pre-compression: ./images/file.jpg
+  - Post-compression: ./images/file.webp +
+  ./images/original/file.jpg (original removed from source)
+
+  The fix is safe because it only removes the original file when:
+  1. Format conversion was requested (options.convert)
+  2. The output path differs from input path (actual conversion
+  occurred)
+  3. The backup and compression operations completed successfully

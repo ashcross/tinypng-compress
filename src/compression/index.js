@@ -59,6 +59,15 @@ async function compressFile(inputPath, apiKey, options = {}) {
     
     await fs.move(tempPath, outputPath, { overwrite: true });
     
+    // If format conversion occurred, remove the original file
+    if (options.convert && inputPath !== outputPath) {
+      try {
+        await fs.unlink(inputPath);
+      } catch (err) {
+        console.warn(`Warning: Could not remove original file ${inputPath}: ${err.message}`);
+      }
+    }
+    
     const processingTime = Date.now() - startTime;
     const compressionRatio = ((originalSize - compressedSize) / originalSize) * 100;
     
