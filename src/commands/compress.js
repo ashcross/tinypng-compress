@@ -2,6 +2,8 @@ import { loadConfig, saveConfig } from '../config/index.js';
 import { compressWithRetry, canCompress } from '../compression/index.js';
 import { validateFileForProcessing, createBackupDirectory, backupFile, formatBytes } from '../utils/fileOps.js';
 import { handleCompressionError, handleFileSystemError, handleConfigError, formatErrorMessage } from '../utils/errorHandler.js';
+import { validateApiKeySelection } from '../utils/apiKeySelector.js';
+import { determineOutputFormat, validateFormat, getConvertDescription } from '../utils/formatHelper.js';
 import path from 'path';
 import tinify from 'tinify';
 
@@ -12,22 +14,25 @@ async function compressFileCommand(filePath, apiKeyName, options = {}) {
   try {
     const config = await loadConfig();
     
-    const apiKey = config.apiKeys.find(key => key.name === apiKeyName);
-    if (!apiKey) {
-      const availableKeys = config.apiKeys.map(k => k.name).join(', ');
-      throw new Error(`API key '${apiKeyName}' not found. Available keys: ${availableKeys}`);
-    }
+    // Validate format option
+    validateFormat(options.convert);
     
+    // Validate file
     const validationErrors = validateFileForProcessing(resolvedFilePath);
     if (validationErrors.length > 0) {
       throw new Error(validationErrors.join(', '));
     }
+    
+    // Smart API key selection
+    const apiKey = await validateApiKeySelection(apiKeyName, config, 1);
     
     canCompress(apiKey, 1);
     
     const backupDirectory = createBackupDirectory(resolvedFilePath);
     
     console.log(`Compressing: ${filePath}`);
+    console.log(`Using API key: ${apiKey.name}`);
+    console.log(`Action: ${getConvertDescription(options.convert, resolvedFilePath)}`);
     
     const backupResult = await backupFile(resolvedFilePath, backupDirectory);
     if (backupResult.skipped) {
@@ -36,16 +41,19 @@ async function compressFileCommand(filePath, apiKeyName, options = {}) {
       console.log(`✓ Original backed up to: ${backupResult.path}`);
     }
     
+    // Determine actual conversion format
+    const actualConvertFormat = determineOutputFormat(resolvedFilePath, options.convert);
+    
     const compressionOptions = {
       preserveMetadata: options.preserveMetadata,
-      convert: options.convert
+      convert: actualConvertFormat
     };
     
     const result = await compressWithRetry(resolvedFilePath, apiKey, compressionOptions);
     
-    console.log(`✓ Compressed successfully using API key '${apiKeyName}'`);
-    if (options.convert && result.outputPath !== resolvedFilePath) {
-      console.log(`✓ Converted to ${options.convert.toUpperCase()} format: ${result.outputPath}`);
+    console.log(`✓ Compressed successfully using API key '${apiKey.name}'`);
+    if (actualConvertFormat && result.outputPath !== resolvedFilePath) {
+      console.log(`✓ Converted to ${actualConvertFormat.toUpperCase()} format: ${result.outputPath}`);
     }
     console.log('');
     console.log('File Statistics:');
@@ -60,7 +68,7 @@ async function compressFileCommand(filePath, apiKeyName, options = {}) {
     
     const remaining = 500 - apiKey.compressions_used;
     console.log('API Key Usage:');
-    console.log(`  ${apiKeyName}: ${apiKey.compressions_used}/500 compressions used (${remaining} remaining)`);
+    console.log(`  ${apiKey.name}: ${apiKey.compressions_used}/500 compressions used (${remaining} remaining)`);
     
     return result;
     
@@ -69,7 +77,7 @@ async function compressFileCommand(filePath, apiKeyName, options = {}) {
     
     if (err instanceof tinify.AccountError || err instanceof tinify.ClientError || 
         err instanceof tinify.ServerError || err instanceof tinify.ConnectionError) {
-      errorInfo = handleCompressionError(err, apiKeyName, resolvedFilePath);
+      errorInfo = handleCompressionError(err, apiKeyName || 'auto-selected', resolvedFilePath);
     } else if (err.code && (err.code.startsWith('E'))) {
       errorInfo = handleFileSystemError(err, resolvedFilePath);
     } else if (err.message.includes('Configuration file not found') || err.message.includes('Configuration file contains invalid JSON')) {

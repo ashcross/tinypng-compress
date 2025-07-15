@@ -8,9 +8,13 @@ const DEFAULT_CONFIG = {
   apiKeys: [],
   compression: {
     preserve_metadata: false,
-    convert_format: null,
+    convert_format: "auto",
     quality: "auto",
     resize: null
+  },
+  defaults: {
+    api_key_selection: "auto",
+    convert_format: "auto"
   },
   output: {
     create_backup: true,

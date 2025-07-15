@@ -1,0 +1,163 @@
+default options for tinypng-compress e.g. tinpng-compress --dir ./images
+defaults to: first api-key with enough available transforms. (perhaps this would be --api-key any)
+defaults to: converts to the same file format of the targeted image (perhaps --convert auto would be the correct option?)
+
+
+ Default Options and Smart API Key Selection Implementation Plan   │ │
+│ │                                                                   │ │
+│ │ Overview                                                          │ │
+│ │                                                                   │ │
+│ │ Implement default command behavior and smart API key selection to │ │
+│ │  simplify usage with commands like:                               │ │
+│ │ - tinypng-compress --dir ./images (uses defaults for --api-key    │ │
+│ │ and --convert)                                                    │ │
+│ │ - Support --api-key any for automatic best-available key          │ │
+│ │ selection                                                         │ │
+│ │ - Support --convert auto to maintain original file formats during │ │
+│ │  compression                                                      │ │
+│ │                                                                   │ │
+│ │ Implementation Changes                                            │ │
+│ │                                                                   │ │
+│ │ 1. Modify CLI Entry Point (src/index.js)                          │ │
+│ │                                                                   │ │
+│ │ - Add new option: --api-key any (alongside existing named keys)   │ │
+│ │ - Add new option: --convert auto (alongside existing format       │ │
+│ │ options)                                                          │ │
+│ │ - Update validation logic: Remove requirement for --api-key when  │ │
+│ │ using --file or --dir                                             │ │
+│ │ - Add default handling: Implement logic to auto-select API key    │ │
+│ │ and convert format when not specified                             │ │
+│ │                                                                   │ │
+│ │ 2. Create Smart API Key Selection (src/utils/apiKeySelector.js)   │ │
+│ │                                                                   │ │
+│ │ - New utility function: selectBestApiKey(config,                  │ │
+│ │ requiredCompressions)                                             │ │
+│ │   - Find API key with sufficient remaining compressions           │ │
+│ │   - Prioritize keys with most remaining capacity                  │ │
+│ │   - Reset monthly usage if needed                                 │ │
+│ │   - Return error if no keys have sufficient capacity              │ │
+│ │ - Validation function: validateApiKeySelection(keyName, config,   │ │
+│ │ requiredCompressions)                                             │ │
+│ │                                                                   │ │
+│ │ 3. Add Auto-Convert Logic (src/utils/formatHelper.js)             │ │
+│ │                                                                   │ │
+│ │ - New utility function: determineOutputFormat(inputPath,          │ │
+│ │ convertOption)                                                    │ │
+│ │   - When --convert auto: return original file extension           │ │
+│ │   - When --convert <format>: return specified format              │ │
+│ │   - When no --convert flag: return original file extension (no    │ │
+│ │ conversion)                                                       │ │
+│ │ - Helper function: getFileExtension(filePath) for consistent      │ │
+│ │ extension handling                                                │ │
+│ │                                                                   │ │
+│ │ 4. Update Command Handlers                                        │ │
+│ │                                                                   │ │
+│ │ - Modify src/commands/compress.js: Add smart defaults handling    │ │
+│ │ - Modify src/commands/compressDir.js: Add smart defaults handling │ │
+│ │ - Both commands will:                                             │ │
+│ │   - Use API key auto-selection when --api-key not specified or    │ │
+│ │ set to "any"                                                      │ │
+│ │   - Use auto-convert logic when --convert not specified or set to │ │
+│ │  "auto"                                                           │ │
+│ │   - Maintain backward compatibility with existing explicit        │ │
+│ │ options                                                           │ │
+│ │                                                                   │ │
+│ │ 5. Update Configuration Defaults (src/config/index.js)            │ │
+│ │                                                                   │ │
+│ │ - Add default settings to DEFAULT_CONFIG:                         │ │
+│ │   - api_key_selection: "auto" (or first available)                │ │
+│ │   - convert_format: "auto" (maintain original format)             │ │
+│ │ - Store user preferences for future sessions                      │ │
+│ │                                                                   │ │
+│ │ Expected Usage Examples                                           │ │
+│ │                                                                   │ │
+│ │ Before (required explicit options):                               │ │
+│ │ tinypng-compress --dir ./images --api-key client1 --convert webp  │ │
+│ │                                                                   │ │
+│ │ After (smart defaults):                                           │ │
+│ │ # Auto-selects best API key, maintains original formats           │ │
+│ │ tinypng-compress --dir ./images                                   │ │
+│ │                                                                   │ │
+│ │ # Auto-selects best API key, converts all to WebP                 │ │
+│ │ tinypng-compress --dir ./images --convert webp                    │ │
+│ │                                                                   │ │
+│ │ # Uses specific key, maintains original formats                   │ │
+│ │ tinypng-compress --dir ./images --api-key client1                 │ │
+│ │                                                                   │ │
+│ │ # Auto-selects best API key with "any" keyword                    │ │
+│ │ tinypng-compress --dir ./images --api-key any --convert auto      │ │
+│ │                                                                   │ │
+│ │ Key Benefits                                                      │ │
+│ │                                                                   │ │
+│ │ 1. Simplified Commands: Most common usage becomes                 │ │
+│ │ tinypng-compress --dir ./images                                   │ │
+│ │ 2. Smart Selection: Automatically finds API key with sufficient   │ │
+│ │ capacity                                                          │ │
+│ │ 3. Format Preservation: Default behavior maintains original file  │ │
+│ │ formats while compressing                                         │ │
+│ │ 4. Backward Compatibility: All existing commands continue to work │ │
+│ │  unchanged                                                        │ │
+│ │ 5. Explicit Override: Users can still specify exact keys and      │ │
+│ │ formats when needed                                               │ │
+│ │                                                                   │ │
+│ │ Implementation Priority                                           │ │
+│ │                                                                   │ │
+│ │ 1. API key auto-selection logic (highest impact)                  │ │
+│ │ 2. Format auto-detection (maintains user expectations)            │ │
+│ │ 3. CLI defaults integration (user experience)                     │ │
+│ │ 4. Configuration persistence (convenience)                        │ │
+│ │                                                                   │ │
+│ │ This plan addresses the user's request for simpler default        │ │
+│ │ commands while adding the intelligent "any" API key selection and │ │
+│ │  "auto" format conversion options.  
+
+
+
+--------
+
+
+Implementation Complete
+
+  I've successfully implemented the default options and smart API
+  key selection functionality. Here's what's now available:
+
+  New Simplified Usage Examples
+
+  Before (required explicit options):
+  tinypng-compress --dir ./images --api-key client1 --convert webp
+
+  After (smart defaults):
+  # Auto-selects best API key, maintains original formats
+  tinypng-compress --dir ./images
+
+  # Auto-selects best API key, converts all to WebP  
+  tinypng-compress --dir ./images --convert webp
+
+  # Uses specific key, maintains original formats
+  tinypng-compress --dir ./images --api-key client1
+
+  # Auto-selects best API key with explicit "any" keyword
+  tinypng-compress --dir ./images --api-key any --convert auto
+
+  Key Features Implemented
+
+  1. Smart API Key Selection: When --api-key is omitted or set to
+  "any", automatically selects the API key with the most available
+  compressions
+  2. Auto Format Conversion: When --convert is omitted or set to
+  "auto", maintains original file formats during compression
+  3. Backward Compatibility: All existing commands continue to work
+  unchanged
+  4. Enhanced Feedback: Shows which API key was selected and what
+  action will be performed
+
+  New Utilities Created
+
+  - src/utils/apiKeySelector.js: Handles intelligent API key
+  selection and validation
+  - src/utils/formatHelper.js: Manages format conversion logic and
+  validation
+
+  The implementation maintains all existing functionality while
+  providing these smart defaults for a much improved user
+  experience.

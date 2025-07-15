@@ -3,6 +3,8 @@ import { compressWithRetry, canCompress } from '../compression/index.js';
 import { BatchProcessor } from '../compression/batchProcessor.js';
 import { validateFileForProcessing, createBackupDirectory, backupFile, formatBytes, scanForImages } from '../utils/fileOps.js';
 import { handleCompressionError, handleFileSystemError, handleConfigError, formatErrorMessage, formatBatchErrorSummary, aggregateBatchErrors } from '../utils/errorHandler.js';
+import { validateApiKeySelection } from '../utils/apiKeySelector.js';
+import { determineOutputFormat, validateFormat, getConvertDescription } from '../utils/formatHelper.js';
 import path from 'path';
 import fs from 'fs-extra';
 import tinify from 'tinify';
@@ -24,12 +26,8 @@ async function compressDirCommand(dirPath, apiKeyName, options = {}) {
     // Load configuration
     const config = await loadConfig();
     
-    // Validate API key
-    const apiKey = config.apiKeys.find(key => key.name === apiKeyName);
-    if (!apiKey) {
-      const availableKeys = config.apiKeys.map(k => k.name).join(', ');
-      throw new Error(`API key '${apiKeyName}' not found. Available keys: ${availableKeys}`);
-    }
+    // Validate format option
+    validateFormat(options.convert);
     
     // Scan for images
     console.log(`Scanning directory: ${dirPath}`);
@@ -46,9 +44,15 @@ async function compressDirCommand(dirPath, apiKeyName, options = {}) {
     const totalSize = imageFiles.reduce((sum, file) => sum + file.size, 0);
     console.log(`Total size: ${formatBytes(totalSize)}`);
     
+    // Smart API key selection
+    const apiKey = await validateApiKeySelection(apiKeyName, config, imageFiles.length);
+    
+    // Display smart selection info
+    console.log(`\nUsing API key: ${apiKey.name}${!apiKeyName || apiKeyName === 'any' ? ' (auto-selected)' : ''}`);
+    console.log(`Action: ${getConvertDescription(options.convert, imageFiles[0]?.path || 'files')}`);
+    
     // Check API key capacity
     const availableCompressions = 500 - apiKey.compressions_used;
-    console.log(`\nChecking API key '${apiKeyName}'...`);
     console.log(`✓ ${availableCompressions} compressions available`);
     
     if (availableCompressions < imageFiles.length) {
@@ -101,14 +105,22 @@ async function compressDirCommand(dirPath, apiKeyName, options = {}) {
     
     // Process files with enhanced batch processing
     const filesToProcess = validFiles.slice(0, availableCompressions);
-    const compressionResults = await processFilesWithBatchProcessor(filesToProcess, apiKey, options, config);
+    
+    // Determine actual conversion format 
+    const actualConvertFormat = determineOutputFormat(filesToProcess[0]?.path || '', options.convert);
+    const processOptions = {
+      ...options,
+      convert: actualConvertFormat
+    };
+    
+    const compressionResults = await processFilesWithBatchProcessor(filesToProcess, apiKey, processOptions, config);
     
     // Update API key usage
     apiKey.compressions_used = compressionResults.finalCompressionCount;
     await saveConfig(config);
     
     // Display results
-    displayCompressionReport(compressionResults, apiKeyName);
+    displayCompressionReport(compressionResults, apiKey.name);
     
     return compressionResults;
     
@@ -117,7 +129,7 @@ async function compressDirCommand(dirPath, apiKeyName, options = {}) {
     
     if (err instanceof tinify.AccountError || err instanceof tinify.ClientError || 
         err instanceof tinify.ServerError || err instanceof tinify.ConnectionError) {
-      errorInfo = handleCompressionError(err, apiKeyName, resolvedDirPath);
+      errorInfo = handleCompressionError(err, apiKeyName || 'auto-selected', resolvedDirPath);
     } else if (err.code && (err.code.startsWith('E'))) {
       errorInfo = handleFileSystemError(err, resolvedDirPath);
     } else if (err.message.includes('Configuration file not found')) {

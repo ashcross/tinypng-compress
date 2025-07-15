@@ -27,9 +27,9 @@ program
   .option('--new-key', 'Add new API key to existing configuration')
   .option('--file <path>', 'Compress single file')
   .option('--dir <path>', 'Compress directory')
-  .option('--api-key <name>', 'Specify API key to use')
+  .option('--api-key <name>', 'Specify API key to use (or "any" for auto-selection)')
   .option('--preserve-metadata', 'Keep EXIF data')
-  .option('--convert <format>', 'Convert to format (webp|png|jpeg|avif)')
+  .option('--convert <format>', 'Convert to format (webp|png|jpeg|avif|auto)')
   .option('--recursive', 'Include subdirectories when processing directory');
 
 program.parse();
@@ -54,11 +54,6 @@ async function main() {
     }
 
     if (options.file) {
-      if (!options.apiKey) {
-        console.error('Error: --api-key is required when using --file');
-        process.exit(1);
-      }
-      
       const compressionOptions = {
         preserveMetadata: options.preserveMetadata,
         convert: options.convert
@@ -69,11 +64,6 @@ async function main() {
     }
 
     if (options.dir) {
-      if (!options.apiKey) {
-        console.error('Error: --api-key is required when using --dir');
-        process.exit(1);
-      }
-      
       const compressionOptions = {
         preserveMetadata: options.preserveMetadata,
         convert: options.convert,
