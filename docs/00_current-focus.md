@@ -8,6 +8,7 @@
 - docs/error-handling.md
 
 ## Tasks
+### Responsive image scaling
 Add a 'max size' option '--max-size' which should be the maximum px size of either the width or the height of the image.
 default: '--max-side auto' : finds the largest dimension of the image (which will be either width or height) and scales the image based on the largest of the dimensions, according to the --max-size option
 Example: '--max-side width' : responsively scales the images based on the width
