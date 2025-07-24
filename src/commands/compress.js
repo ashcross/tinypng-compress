@@ -46,7 +46,9 @@ async function compressFileCommand(filePath, apiKeyName, options = {}) {
     
     const compressionOptions = {
       preserveMetadata: options.preserveMetadata,
-      convert: actualConvertFormat
+      convert: actualConvertFormat,
+      maxSize: options.maxSize,
+      maxSide: options.maxSide
     };
     
     const result = await compressWithRetry(resolvedFilePath, apiKey, compressionOptions);
@@ -55,11 +57,17 @@ async function compressFileCommand(filePath, apiKeyName, options = {}) {
     if (actualConvertFormat && result.outputPath !== resolvedFilePath) {
       console.log(`✓ Converted to ${actualConvertFormat.toUpperCase()} format: ${result.outputPath}`);
     }
+    if (result.wasResized) {
+      console.log(`✓ Resized: ${result.originalDimensions.width}×${result.originalDimensions.height} → ${result.resizeDimensions.width}×${result.resizeDimensions.height}`);
+    }
     console.log('');
     console.log('File Statistics:');
     console.log(`  Original:   ${formatBytes(result.originalSize)}`);
     console.log(`  Compressed: ${formatBytes(result.compressedSize)}`);
     console.log(`  Savings:    ${result.compressionRatio}% (${formatBytes(result.savings)} saved)`);
+    if (result.originalDimensions && !result.wasResized) {
+      console.log(`  Dimensions: ${result.originalDimensions.width}×${result.originalDimensions.height} (no resize needed)`);
+    }
     console.log('');
     
     apiKey.compressions_used = result.compressionCount;

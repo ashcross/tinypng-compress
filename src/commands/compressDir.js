@@ -110,7 +110,9 @@ async function compressDirCommand(dirPath, apiKeyName, options = {}) {
     const actualConvertFormat = determineOutputFormat(filesToProcess[0]?.path || '', options.convert);
     const processOptions = {
       ...options,
-      convert: actualConvertFormat
+      convert: actualConvertFormat,
+      maxSize: options.maxSize,
+      maxSide: options.maxSide
     };
     
     const compressionResults = await processFilesWithBatchProcessor(filesToProcess, apiKey, processOptions, config);

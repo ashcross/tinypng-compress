@@ -1,6 +1,7 @@
 # PHASE 3.5 - enhancements
 
 ## Active References
+- docs/phase04.md
 - docs/config-structure.md
 - docs/commands-spec.md
 - docs/api-reference.md
@@ -8,14 +9,25 @@
 - docs/error-handling.md
 
 ## Tasks
-### Responsive image scaling
-Add a 'max size' option '--max-size' which should be the maximum px size of either the width or the height of the image.
-default: '--max-side auto' : finds the largest dimension of the image (which will be either width or height) and scales the image based on the largest of the dimensions, according to the --max-size option
-Example: '--max-side width' : responsively scales the images based on the width
-Example: '--max-size height' : responsively scales images based on the height
+### Responsive image scaling - enhancements
+review the document /docs/phase04.md for the previous implementation.
+From my testing I have noted the below scenarios of success & failure. Please review these, and review the code to ensure successful compressions across all of the commands:
 
-default: '--max-size none' : this does not attempt to resize them image during compression
-example: '--max-size 1920' : The current image is reviewed to find the largest dimension of the image (which will be decided by the '--max-side' option, either auto, width, or height) and if that number exceeds 1920, the image is auto scaled down based on that dimension
+- tinypng-compress ashcross$ tinypng-compress --file ./example.png --max-size 1920 --convert webp
+Original example.png 4345px x 2207px
+Resulted in example.webp 4345px x 2207px
+Correct compression format change, unsuccessful responsive resize
+
+- tinypng-compress --file ./example.png --max-size 1920
+Original example.png 4345px x 1914px
+Resulted in example.png 1920px x 846
+Correct responsive resize when no format conversion requested
+
+- tinypng-compress --dir ./example/ --max-size 1920
+Original directory: mix of png, jpg, all greater than 1920px wide
+Results: png, jpg files compressed, but none of the images were resized
+Did not try to test --convert format change as 'auto' did not work.
+
 
 
 ## Previous recent phase implementation notes for review

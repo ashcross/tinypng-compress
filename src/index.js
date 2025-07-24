@@ -30,7 +30,9 @@ program
   .option('--api-key <name>', 'Specify API key to use (or "any" for auto-selection)')
   .option('--preserve-metadata', 'Keep EXIF data')
   .option('--convert <format>', 'Convert to format (webp|png|jpeg|avif|auto)')
-  .option('--recursive', 'Include subdirectories when processing directory');
+  .option('--recursive', 'Include subdirectories when processing directory')
+  .option('--max-size <pixels>', 'Maximum size for image scaling (default: none)')
+  .option('--max-side <side>', 'Dimension to prioritize for scaling: auto|width|height (default: auto)');
 
 program.parse();
 
@@ -56,7 +58,9 @@ async function main() {
     if (options.file) {
       const compressionOptions = {
         preserveMetadata: options.preserveMetadata,
-        convert: options.convert
+        convert: options.convert,
+        maxSize: options.maxSize || 'none',
+        maxSide: options.maxSide || 'auto'
       };
       
       await compressFileCommand(options.file, options.apiKey, compressionOptions);
@@ -67,7 +71,9 @@ async function main() {
       const compressionOptions = {
         preserveMetadata: options.preserveMetadata,
         convert: options.convert,
-        recursive: options.recursive
+        recursive: options.recursive,
+        maxSize: options.maxSize || 'none',
+        maxSide: options.maxSide || 'auto'
       };
       
       await compressDirCommand(options.dir, options.apiKey, compressionOptions);

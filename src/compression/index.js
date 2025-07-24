@@ -1,6 +1,7 @@
 import tinify from 'tinify';
 import fs from 'fs-extra';
 import path from 'path';
+import { getImageDimensions, calculateResizeDimensions, createTinyPngResizeOptions, shouldResize } from '../utils/imageUtils.js';
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -12,15 +13,37 @@ async function compressFile(inputPath, apiKey, options = {}) {
   const startTime = Date.now();
   const originalSize = fs.statSync(inputPath).size;
   
+  let originalDimensions = null;
+  let resizeDimensions = null;
+  let resizeOptions = null;
+  
+  if (shouldResize(options.maxSize)) {
+    const dimensionResult = getImageDimensions(inputPath);
+    if (dimensionResult.success) {
+      originalDimensions = {
+        width: dimensionResult.width,
+        height: dimensionResult.height
+      };
+      
+      resizeDimensions = calculateResizeDimensions(
+        dimensionResult.width,
+        dimensionResult.height,
+        options.maxSize,
+        options.maxSide
+      );
+      
+      if (resizeDimensions) {
+        resizeOptions = createTinyPngResizeOptions(resizeDimensions);
+      }
+    }
+  }
+  
   try {
     const source = tinify.fromFile(inputPath);
     
     let processedSource = source;
     
-    if (options.resize) {
-      processedSource = source.resize(options.resize);
-    }
-    
+    // Apply format conversion first (if needed)
     if (options.convert) {
       // Map format short names to MIME types
       const formatMap = {
@@ -37,9 +60,17 @@ async function compressFile(inputPath, apiKey, options = {}) {
       if (options.background) {
         convertOptions.transform = { background: options.background };
       }
-      processedSource = source.convert(convertOptions);
+      processedSource = processedSource.convert(convertOptions);
     }
     
+    // Apply resize operations second (building on converted source)
+    if (resizeOptions) {
+      processedSource = processedSource.resize(resizeOptions);
+    } else if (options.resize) {
+      processedSource = processedSource.resize(options.resize);
+    }
+    
+    // Apply metadata preservation last
     if (options.preserveMetadata) {
       processedSource = processedSource.preserve("copyright", "creation", "location");
     }
@@ -79,7 +110,10 @@ async function compressFile(inputPath, apiKey, options = {}) {
       compressionRatio: Math.round(compressionRatio * 100) / 100,
       processingTime,
       compressionCount: tinify.compressionCount,
-      outputPath
+      outputPath,
+      originalDimensions,
+      resizeDimensions,
+      wasResized: !!resizeDimensions
     };
     
   } catch (err) {

@@ -97,7 +97,9 @@ class BatchProcessor {
 
       const compressionOptions = {
         preserveMetadata: options.preserveMetadata,
-        convert: options.convert
+        convert: options.convert,
+        maxSize: options.maxSize,
+        maxSide: options.maxSide
       };
 
       const result = await compressWithRetry(file.path, apiKey, compressionOptions);
