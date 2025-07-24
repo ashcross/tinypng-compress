@@ -35,5 +35,6 @@ Did not try to test --convert format change as 'auto' did not work.
 
 
 ## Tasks to be completed soon - ignore these tasks for now
+- ignore: update all documentation regarding the recent responsive image resizing features, including terminal progress and review text during commands
 - ignore: when '--api-key' is not specified, the default should be to use the next available api key with enough available compressions remaining
 - ignore: the --recursive option moves all files to ./original but does not retain the original folder directory tree structure. All files are moved into a flat ./original/[filename]
