@@ -38,13 +38,17 @@ npm install
 
 ## Quick Start
 
-### 1. Initialize Configuration
+### 1. Create your tinypng API key
+Login using your email address and create a free API key
+https://tinypng.com/
+
+### 2. Initialize Configuration
 Create your configuration file with API keys:
 ```bash
 tinypng-compress --init
 ```
 
-### 2. Basic Usage Examples
+### 3. Basic Usage Examples
 
 #### Compress a Directory (Simplified)
 ```bash
