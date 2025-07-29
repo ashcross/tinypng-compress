@@ -1,7 +1,10 @@
 import fs from 'fs-extra';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const CONFIG_FILE = './tinypng.config.json';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const CONFIG_FILE = path.join(__dirname, '../../tinypng.config.json');
 
 const DEFAULT_CONFIG = {
   version: "1.0.0",
