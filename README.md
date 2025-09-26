@@ -154,6 +154,10 @@ tinypng-compress --dir ./assets --api-key backup-key
 - `--recursive`: Include subdirectories when processing directories
 - `--preserve-metadata`: Keep EXIF data during compression
 
+### Size Options
+- `--max-side auto`: Choose the 'side' that should be judged for --max-size: width, height, auto
+- `--max-size 1920`: If image is >1920px then resize to 1920px
+
 ## Configuration
 
 ### Configuration File Location
@@ -215,6 +219,7 @@ The tool creates `tinypng.config.json` in your project directory with the follow
 - **Input**: PNG, JPEG, WebP, AVIF
 - **Output**: PNG, JPEG, WebP, AVIF
 - **Conversion**: Any format can be converted to any other supported format
+- **Note**: HEIC is not currently supported by the Tinify API, but is in development. Manually convert to a supported format first.
 
 ## Performance Features
 

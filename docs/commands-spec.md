@@ -282,10 +282,12 @@ Options:
   --check                    Show API key usage status
   --file <path>             Compress single file
   --dir <path>              Compress directory
-  --api-key <name>          Specify API key to use
+  --api-key <name>          Specify API key to use (any|[specific name])
   --preserve-metadata       Keep EXIF data
-  --convert <format>        Convert to format (webp|png|jpeg|avif)
+  --convert <format>        Convert to format (auto|webp|png|jpeg|avif)
   --recursive               Include subdirectories
+  --max-side <side>         Choose specific side to resize by (auto|width|height)
+  --max-size <px>           Choose the largest px size, if great then image should be resized down (e.g. 1920)
   -h, --help               Display help information
 
 Examples:
@@ -293,6 +295,7 @@ Examples:
   tinypng-compress --check  
   tinypng-compress --file logo.png --api-key client1
   tinypng-compress --dir ./images/ --api-key client1
+  tinypng-compress --dir ./images/ --convert webp --max-side auto --max-size 1920
 
 Get started:
   1. Run 'tinypng-compress --init' to set up API keys
