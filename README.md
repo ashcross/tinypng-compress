@@ -2,6 +2,8 @@
 
 A sophisticated Node.js CLI tool for batch image compression using the TinyPNG API with intelligent API key management, concurrent processing, and smart automation features.
 
+testing
+
 ## Features
 
 ### 🚀 Core Capabilities
